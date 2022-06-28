@@ -85,6 +85,7 @@ import org.apache.ignite.lang.IgnitePredicate;
 import org.apache.ignite.lang.IgniteUuid;
 import org.apache.ignite.marshaller.Marshaller;
 import org.apache.ignite.marshaller.jdk.JdkMarshaller;
+import org.apache.ignite.perf.CallPerformanceLogger;
 import org.apache.ignite.plugin.security.SecurityException;
 import org.apache.ignite.plugin.security.SecurityPermission;
 import org.apache.ignite.services.Service;
@@ -744,8 +745,11 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
      * @param dfltNodeFilter Default NodeFilter.
      * @return Future for deployment.
      */
+    private CallPerformanceLogger deployAllPerformanceLogger = new CallPerformanceLogger("DEPLOY-ALL");
     private IgniteInternalFuture<?> deployAll(@NotNull Collection<ServiceConfiguration> cfgs,
         @Nullable IgnitePredicate<ClusterNode> dfltNodeFilter) {
+      CallPerformanceLogger.CallTracker callTracker = deployAllPerformanceLogger.callStarted();
+      try {
         opsLock.readLock().lock();
 
         try {
@@ -817,6 +821,9 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
         finally {
             opsLock.readLock().unlock();
         }
+      } finally {
+        callTracker.finished();
+      }
     }
 
     /**
@@ -1490,7 +1497,10 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
      * @param reqSrvcId Request's service id.
      * @param err Error to complete with. If {@code null} a future will be completed successfully.
      */
+    private CallPerformanceLogger completeInitiatingFuturePerformanceLogger = new CallPerformanceLogger("COMPLETE-INITIATING-FUTURE");
     void completeInitiatingFuture(boolean deploy, IgniteUuid reqSrvcId, Throwable err) {
+      CallPerformanceLogger.CallTracker callTracker = completeInitiatingFuturePerformanceLogger.callStarted();
+      try {
         GridFutureAdapter<?> fut = deploy ? depFuts.remove(reqSrvcId) : undepFuts.remove(reqSrvcId);
 
         if (fut == null)
@@ -1508,6 +1518,9 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
         }
         else
             fut.onDone();
+      } finally {
+          callTracker.finished();
+      }
     }
 
     /**
@@ -1704,7 +1717,13 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
      * @param snd Sender.
      * @param msg Message.
      */
+    private CallPerformanceLogger processServicesChangeRequestPerformanceLogger = new CallPerformanceLogger("PROCESS-SERVICES-CHANGE-REQUEST");
+    private CallPerformanceLogger processServicesChangeRequest2PerformanceLogger = new CallPerformanceLogger("PROCESS-SERVICES-CHANGE-REQUEST-002");
+    private CallPerformanceLogger processServicesChangeRequest3PerformanceLogger = new CallPerformanceLogger("PROCESS-SERVICES-CHANGE-REQUEST-003");
+    private CallPerformanceLogger processServicesChangeRequest4PerformanceLogger = new CallPerformanceLogger("PROCESS-SERVICES-CHANGE-REQUEST-004B");
     private void processServicesChangeRequest(ClusterNode snd, ServiceChangeBatchRequest msg) {
+      CallPerformanceLogger.CallTracker callTracker = processServicesChangeRequestPerformanceLogger.callStarted();
+      try {
         DiscoveryDataClusterState state = ctx.state().clusterState();
 
         if (!state.active() || state.transition()) {
@@ -1729,6 +1748,9 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
         Map<IgniteUuid, ServiceInfo> toUndeploy = new HashMap<>();
 
         for (ServiceChangeAbstractRequest req : msg.requests()) {
+            //// NARROW DOWN START
+            CallPerformanceLogger.CallTracker callTracker4 = processServicesChangeRequest4PerformanceLogger.callStarted();
+
             IgniteUuid reqSrvcId = req.serviceId();
             ServiceInfo oldDesc = registeredServices.get(reqSrvcId);
 
@@ -1754,11 +1776,17 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
                                     "affinity cache is not found, cfg=" + cfg);
                             }
                             else {
+                              CallPerformanceLogger.CallTracker callTracker2 = processServicesChangeRequest2PerformanceLogger.callStarted();
+                              try {
+
                                 ServiceInfo desc = new ServiceInfo(snd.id(), reqSrvcId, cfg);
 
                                 registerService(desc);
 
                                 toDeploy.put(reqSrvcId, desc);
+                              } finally {
+                                  callTracker2.finished();
+                                }
                             }
                         }
                         else {
@@ -1797,9 +1825,14 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
 
                 toUndeploy.put(reqSrvcId, rmv);
             }
+
+            callTracker4.finished();
+            //// NARROW DOWN FINISH
         }
 
         if (!toDeploy.isEmpty() || !toUndeploy.isEmpty()) {
+          CallPerformanceLogger.CallTracker callTracker3 = processServicesChangeRequest3PerformanceLogger.callStarted();
+          try {
             ServiceDeploymentActions depActions = new ServiceDeploymentActions(ctx);
 
             if (!toDeploy.isEmpty())
@@ -1809,7 +1842,13 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
                 depActions.servicesToUndeploy(toUndeploy);
 
             msg.servicesDeploymentActions(depActions);
+          } finally {
+              callTracker3.finished();
+          }
         }
+      } finally {
+          callTracker.finished();
+      }
     }
 
     /**
@@ -1818,6 +1857,8 @@ public class IgniteServiceProcessor extends GridProcessorAdapter implements Igni
     private void registerService(ServiceInfo desc) {
         desc.context(ctx);
 
+        // TBD
+        // (CONCURRENCY NOTE: these two maps need to update concurrently)
         registeredServices.put(desc.serviceId(), desc);
         registeredServicesByName.put(desc.name(), desc);
     }
