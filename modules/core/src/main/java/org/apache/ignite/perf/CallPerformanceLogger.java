@@ -79,10 +79,12 @@ public class CallPerformanceLogger {
 
     private void reportTime() {
         long snapshotTotalCallCount;
+        long snapshotActiveCallCount;
         long snapshotTotalTime;
         long snapshotTotalElapsedTime;
         synchronized (diagTimerLock) {
             snapshotTotalCallCount = totalCallCount;
+            snapshotActiveCallCount = activeCallCount;
             snapshotTotalTime = accumulatedTime;
             snapshotTotalElapsedTime = accumulatedElapsedTime;
         }
@@ -90,6 +92,7 @@ public class CallPerformanceLogger {
         System.out.println("===== DIAG TIME ===== [" +
                 label + "] " +
                 " total-calls=" + snapshotTotalCallCount +
+                " active-calls=" + snapshotActiveCallCount +
                 " total-cpu-time=" + formatTime(snapshotTotalTime) +
                 " total-elapsed-time=" + formatTime(snapshotTotalElapsedTime)
         );

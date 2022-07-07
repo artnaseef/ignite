@@ -47,6 +47,7 @@ import org.apache.ignite.internal.processors.cluster.ChangeGlobalStateMessage;
 import org.apache.ignite.internal.util.GridSpinBusyLock;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.internal.util.worker.GridWorker;
+// import org.apache.ignite.perf.CallPerformanceLogger;
 import org.apache.ignite.thread.IgniteThread;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -440,6 +441,9 @@ public class ServiceDeploymentManager {
     /**
      * Services deployment worker.
      */
+    // private static CallPerformanceLogger sdwPerformanceLogger0 = new CallPerformanceLogger("DDD PROC-DEPLOY-ACT-000");
+    // private static CallPerformanceLogger sdwPerformanceLogger1 = new CallPerformanceLogger("DDD PROC-DEPLOY-ACT-111");
+    // private static CallPerformanceLogger sdwPerformanceLogger2 = new CallPerformanceLogger("DDD PROC-DEPLOY-ACT-222");
     private class ServicesDeploymentWorker extends GridWorker {
         /** Queue to process. */
         private final LinkedBlockingQueue<ServiceDeploymentTask> tasksQueue = new LinkedBlockingQueue<>();
@@ -452,9 +456,13 @@ public class ServiceDeploymentManager {
 
         /** {@inheritDoc} */
         @Override protected void body() throws InterruptedException, IgniteInterruptedCheckedException {
+          // CallPerformanceLogger.CallTracker tracker0 = sdwPerformanceLogger0.callStarted();
+          // try {
             Throwable err = null;
 
             try {
+              // CallPerformanceLogger.CallTracker tracker1 = sdwPerformanceLogger1.callStarted();
+              // try {
                 ServiceDeploymentTask task;
 
                 while (!isCancelled()) {
@@ -479,6 +487,8 @@ public class ServiceDeploymentManager {
                     long dumpCnt = 0;
                     long nextDumpTime = 0;
 
+                  // CallPerformanceLogger.CallTracker tracker2 = sdwPerformanceLogger2.callStarted();
+                  // try {
                     while (true) {
                         try {
                             blockingSectionBegin();
@@ -516,7 +526,13 @@ public class ServiceDeploymentManager {
                             break;
                         }
                     }
+                  // } finally {
+                  //   tracker2.finished();
+                  // }
                 }
+              // } finally {
+              //   tracker1.finished();
+              // }
             }
             catch (InterruptedException | IgniteInterruptedCheckedException e) {
                 Thread.currentThread().interrupt();
@@ -536,6 +552,9 @@ public class ServiceDeploymentManager {
                 else if (err != null)
                     ctx.failure().process(new FailureContext(SYSTEM_WORKER_TERMINATION, err));
             }
+          // } finally {
+          //   tracker0.finished();
+          // }
         }
 
         /**

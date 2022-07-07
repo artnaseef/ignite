@@ -46,6 +46,7 @@ import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.lang.IgniteInClosure;
 import org.apache.ignite.lang.IgniteUuid;
+import org.apache.ignite.perf.CallPerformanceLogger;
 import org.apache.ignite.services.ServiceConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -160,7 +161,10 @@ class ServiceDeploymentTask {
      *
      * @throws IgniteCheckedException In case of an error.
      */
+    // private static CallPerformanceLogger initPerformanceLogger0 = new CallPerformanceLogger("CCC INIT-000");
     protected void init() throws IgniteCheckedException {
+      // CallPerformanceLogger.CallTracker tracker0 = initPerformanceLogger0.callStarted();
+      // try {
         if (isCompleted() || initTaskFut.isDone())
             return;
 
@@ -278,14 +282,32 @@ class ServiceDeploymentTask {
                     ", locId=" + ctx.localNodeId() + ']');
             }
         }
+      // } finally {
+      //   tracker0.finished();
+      // }
     }
 
     /**
      * @param depActions Services deployment actions.
      */
-    private void processDeploymentActions(@NotNull ServiceDeploymentActions depActions) {
-        srvcProc.updateDeployedServices(depActions);
 
+    // private static CallPerformanceLogger deployAllPerformanceLogger0 = new CallPerformanceLogger("BBB PROC-DEPLOY-ACT-000");
+    // private static CallPerformanceLogger deployAllPerformanceLogger1 = new CallPerformanceLogger("BBB PROC-DEPLOY-ACT-001");
+    // private static CallPerformanceLogger deployAllPerformanceLogger2 = new CallPerformanceLogger("BBB PROC-DEPLOY-ACT-002");
+    // private static CallPerformanceLogger deployAllPerformanceLogger3 = new CallPerformanceLogger("BBB PROC-DEPLOY-ACT-003");
+
+    private void processDeploymentActions(@NotNull ServiceDeploymentActions depActions) {
+      // CallPerformanceLogger.CallTracker tracker0 = deployAllPerformanceLogger0.callStarted();
+      // try {
+      //  CallPerformanceLogger.CallTracker tracker1 = deployAllPerformanceLogger1.callStarted();
+      //  try {
+        srvcProc.updateDeployedServices(depActions);
+       // } finally {
+       //  tracker1.finished();
+       // }
+
+       // CallPerformanceLogger.CallTracker tracker2 = deployAllPerformanceLogger2.callStarted();
+       // try {
         depActions.servicesToUndeploy().forEach((srvcId, desc) -> {
             srvcProc.deployment().deployerBlockingSectionBegin();
 
@@ -296,10 +318,15 @@ class ServiceDeploymentTask {
                 srvcProc.deployment().deployerBlockingSectionEnd();
             }
         });
+       // } finally {
+       //     tracker2.finished();
+       // }
 
         if (!depActions.servicesToDeploy().isEmpty()) {
             final Collection<UUID> evtTopNodes = F.nodeIds(ctx.discovery().nodes(evtTopVer));
 
+          // CallPerformanceLogger.CallTracker tracker3 = deployAllPerformanceLogger3.callStarted();
+          // try {
             depActions.servicesToDeploy().forEach((srvcId, desc) -> {
                 try {
                     ServiceConfiguration cfg = desc.configuration();
@@ -327,9 +354,15 @@ class ServiceDeploymentTask {
                     depErrors.computeIfAbsent(srvcId, c -> new ArrayList<>()).add(e);
                 }
             });
+          // } finally {
+          //     tracker3.finished();
+          // }
         }
 
         createAndSendSingleDeploymentsMessage(depId, depErrors);
+      // } finally {
+      //     tracker0.finished();
+      // }
     }
 
     /**
